@@ -1,0 +1,23 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="please:jar">
+    <output-path>$USER_HOME$/Downloads/paper 1.20.1/plugins</output-path>
+    <root id="archive" name="please.jar">
+      <element id="module-output" name="please.main" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk8/1.8.22/b25c86d47d6b962b9cf0f8c3f320c8a10eea3dd1/kotlin-stdlib-jdk8-1.8.22.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/io.github.monun/invfx-api/3.3.2/fb0c49f9e8d9d47f9ed685e5c1c665426743da33/invfx-api-3.3.2.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/io.github.monun/heartbeat-coroutines/0.0.5/de982009461abf4ad84edc63ba469838ce8504aa/heartbeat-coroutines-0.0.5.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm/1.4.1/e0c2c11e5d0d541ca343c8f09602c0c2287d15a1/kotlinx-serialization-core-jvm-1.4.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.mariuszgromada.math/MathParser.org-mXparser/5.0.6/e1ef145b05bb25e5b3898be720a6d074811592cc/MathParser.org-mXparser-5.0.6.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-jdk7/1.8.22/4dabb8248310d833bb6a8b516024a91fd3d275c/kotlin-stdlib-jdk7-1.8.22.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/13.0/919f0dfe192fb4e063e7dacadee7f8bb9a2672a9/annotations-13.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.8.22/636bf8b320e7627482771bbac9ed7246773c02bd/kotlin-stdlib-1.8.22.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/io.github.monun/kommand-api/3.1.7/9e1ee8b411f671d46e5d12e62bf359462bbc8c3/kommand-api-3.1.7.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/io.github.monun/tap-api/4.9.8/1990129957fb0ddb5c0e39ea54494c047677973f/tap-api-4.9.8.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-reflect/1.8.22/b52be44bc57cb6fd2169a29aefa4507c4e49c858/kotlin-reflect-1.8.22.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm/1.6.4/2c997cd1c0ef33f3e751d3831929aeff1390cb30/kotlinx-coroutines-core-jvm-1.6.4.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm/1.4.1/e6430b33f06dcdff88998abfcb2e78bc3cd0a1f6/kotlinx-serialization-json-jvm-1.4.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-protobuf-jvm/1.4.1/45e74133572d4d5304a3be072ea436e9dfdb32fb/kotlinx-serialization-protobuf-jvm-1.4.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../paper-sample-complex2/gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-common/1.8.22/1a8e3601703ae14bb58757ea6b2d8e8e5935a586/kotlin-stdlib-common-1.8.22.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
