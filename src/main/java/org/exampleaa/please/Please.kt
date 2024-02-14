@@ -1,14 +1,14 @@
 package org.exampleaa.please
 
 
-import com.comphenix.protocol.ProtocolLibrary
-import com.comphenix.protocol.ProtocolManager
+
 import io.github.monun.heartbeat.coroutines.HeartbeatScope
 import io.github.monun.invfx.InvFX.frame
 import io.github.monun.invfx.openFrame
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.kyori.adventure.text.Component
+import net.milkbowl.vault.economy.Economy
 import org.bukkit.*
 import org.bukkit.attribute.Attribute
 import org.bukkit.block.Block
@@ -50,6 +50,8 @@ import java.util.*
 
 @Suppress("UnstableApiUsage")
 class Please : JavaPlugin() {
+    private var economy : Economy? = null
+
     val entityTypes = listOf(
         EntityType.ZOMBIE,
         EntityType.SPIDER,
@@ -63,22 +65,30 @@ class Please : JavaPlugin() {
     var hottime = 0
     var multiplier  = 0.0
     companion object{
-        lateinit var pleaseprotocolManager: ProtocolManager
         lateinit var plugin: Plugin
     }
     override fun onLoad() {
-        pleaseprotocolManager = ProtocolLibrary.getProtocolManager()
         plugin = this
     }
     override fun onEnable() {
         val folder = File(dataFolder,"config.yml")
         saveDefaultConfig();
+        val essentialsPlugin = server.pluginManager.getPlugin("Essentials")
+        var taskId = 0
+        taskId = this.server.scheduler.scheduleAsyncRepeatingTask(this, {
+            if (essentialsPlugin != null && essentialsPlugin.isEnabled) {
+                if (!setupEconomy() ) {
+                    logger.severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
+                    Bukkit.getScheduler().cancelTask(taskId)
+                }
+            }
+        }, 0L, 1L)
         val bans = config.getConfigurationSection("bans")?:config.createSection("bans")
         val drops = config.getConfigurationSection("drops")?:config.createSection("bans")
         HeartbeatScope().launch {
             delay(20)
             if (hottime == 1){
-                Bukkit.getServer().broadcastMessage("&c핫타임&f이 종료되었습니다.")
+                Bukkit.getServer().broadcastMessage("&c핫타임&f이 종료되었습니다.".translateColor())
             }
             saveConfig()
         }
@@ -96,58 +106,6 @@ class Please : JavaPlugin() {
             }
         }
         this.kommand {
-            register("money"){
-                requires { isOp }
-                then("check"){
-                    executes {
-                        val attackerName = sender.name
-                        val folder = File(dataFolder,"Players")
-                        if (!folder.exists()) {
-                            folder.mkdirs()
-                        }
-                        val file = File(folder, "${attackerName}.yml")
-                        val playerConfig: YamlConfiguration = YamlConfiguration.loadConfiguration(file)
-                        sender.sendMessage("[서버] ${playerConfig.getInt("money")}의 잔액이 남았습니다.")
-                        playerConfig.save(file)
-
-                    }
-                }
-                then("set"){
-                    then("money" to int()){
-                        executes {
-                            val money : Int by it
-                            val attackerName = sender.name
-                            val folder = File(dataFolder,"Players")
-                            if (!folder.exists()) {
-                                folder.mkdirs()
-                            }
-                            val file = File(folder, "${attackerName}.yml")
-                            val playerConfig: YamlConfiguration = YamlConfiguration.loadConfiguration(file)
-                            playerConfig.set("money",money)
-                            sender.sendMessage("[서버] ${playerConfig.getInt("money")}의 잔액이 남았습니다.")
-                            playerConfig.save(file)
-                        }
-                    }
-                }
-                then("add"){
-                    then("money" to int()){
-                        executes {
-                            val money : Int by it
-                            val attackerName = sender.name
-                            val folder = File(dataFolder,"Players")
-                            if (!folder.exists()) {
-                                folder.mkdirs()
-                            }
-                            val file = File(folder, "${attackerName}.yml")
-                            val playerConfig: YamlConfiguration = YamlConfiguration.loadConfiguration(file)
-                            playerConfig.set("money",playerConfig.getInt("money")+money)
-                            sender.sendMessage("[서버] ${playerConfig.getInt("money")}의 잔액이 남았습니다.")
-                            playerConfig.save(file)
-
-                        }
-                    }
-                }
-            }
             register("dropitem"){
                 requires {isPlayer && isOp}
                 executes {
@@ -155,8 +113,13 @@ class Please : JavaPlugin() {
                     if (p.inventory.itemInMainHand == null){
                         p.sendMessage("[서버] 아이템을 손에 쥔채로 명령어를 실행하십시오..")
                     }else{
-                        drops.set(p.inventory.itemInMainHand.i18NDisplayName?:"",p.inventory.itemInMainHand)
-                        p.sendMessage("[서버] ${p.inventory.itemInMainHand.i18NDisplayName}를 추가했어요.")
+                        if (drops.toItemstacks().contains(p.inventory.itemInMainHand)){
+                            drops.set(bans.ItemStackKey(p.inventory.itemInMainHand)?:"",null)
+                            p.sendMessage("[서버] ${p.inventory.itemInMainHand.i18NDisplayName}를 삭제했어요.")
+                        }else{
+                            drops.set(p.inventory.itemInMainHand.i18NDisplayName?:"",p.inventory.itemInMainHand)
+                            p.sendMessage("[서버] ${p.inventory.itemInMainHand.i18NDisplayName}를 추가했어요.")
+                        }
                     }
                     config.set("drops",drops)
                     saveConfig()
@@ -198,8 +161,9 @@ class Please : JavaPlugin() {
             register("mob"){
                 then("center"){
                     executes {
-                        config.set("center",(sender as Player).location)
-                        sender.sendMessage("위치를 지정했습니다. ${(sender as Player).location}")
+                        val centers = config.getConfigurationSection("centers") ?: config.createSection("centers")
+                        centers.set ((sender as Player).location.world.name,(sender as Player).location)
+                        sender.sendMessage("위치를 지정했습니다. ${(sender as Player).location.toVector().toBlockVector()}")
                         saveConfig()
                     }
                 }
@@ -210,13 +174,13 @@ class Please : JavaPlugin() {
                 }
             }
             register("hottime"){
-                then("multiplier" to int()){
+                then("multiplierd" to int()){
                     then("duration" to int()){
                         executes {
-                            val multiplier : Int by it
+                            val multiplierd : Int by it
                             val duration : Int by it
                             hottime = duration * 60
-                            this@Please.multiplier = multiplier.toDouble()
+                            multiplier = multiplierd.toDouble()
                             player.server.broadcastMessage("${ChatColor.RED}핫타임${ChatColor.WHITE}이 시작되었습니다!. 드랍률 ${multiplier * 100}% [$hottime 초]")
                         }
                     }
@@ -245,8 +209,8 @@ class Please : JavaPlugin() {
                             playerConfig.set("MobCount",mobCount)
                             playerConfig.save(file)
                             if (mobCount > 50) {
-                                attacker.kickPlayer("§c몹 카운트가 초과되어 자동으로 밴 처리되었습니다.")
-                                attacker.banPlayer("§c관리자에게 문의하세요.", "")
+                                attacker.kickPlayer("§c몹 카운트가 초과되어 자동으로 밴 처리되었습니다.".translateColor())
+                                attacker.banPlayer("§c관리자에게 문의하세요.".translateColor(), "")
                                 server.broadcastMessage("§c${attackerName}의 몹 카운트가 초과되어 자동으로 밴 처리되었습니다.")
                             }
 
@@ -274,23 +238,15 @@ class Please : JavaPlugin() {
                     }
                 }
                 HeartbeatScope().launch {
-                    if (!((victim as LivingEntity).isGlowing)){
-                        if (entityTypes.contains(victim.type)){
-                            if (Random().nextInt(1000)<= 15){
+                    val entitys = config.getConfigurationSection("entitys") ?: config.createSection("entitys")
+                    if (entitys.getKeys(false).contains(victim.type.toString())){
+                        val entityMonster = entitys.getConfigurationSection(victim.type.toString())
+                        if (victim.isGlowing){
+                            if (Random().nextDouble(100.0) <= (entityMonster?.getDouble("chance") ?: 0.0)){
                                 spawnEntity(victim, config)
                             }
-                        }else if (victim::class.java is Skeleton){
-                            if (Random().nextInt(1000)<= 11){
-                                spawnEntity(victim, config)
-                            }
-                        }
-                    }else{
-                        if (entityTypes.contains(victim.type)){
-                            if (Random().nextInt(1000)<= 900){
-                                dropRandomItem(victim.location)
-                            }
-                        }else if (victim::class.java is Skeleton){
-                            if (Random().nextInt(1000)<= 900){
+                        }else{
+                            if (Random().nextDouble(100.0) <= (entityMonster?.getDouble("drop") ?: 0.0)){
                                 dropRandomItem(victim.location)
                             }
                         }
@@ -331,13 +287,6 @@ class Please : JavaPlugin() {
                 if (this.rightClicked.name == "은행원" || player.isOp){
                     isCancelled = true
                     var n =0
-                    val folder = File(dataFolder,"Players")
-                    if (!folder.exists()) {
-                        folder.mkdirs()
-                    }
-                    val file = File(folder, "${player.name}.yml")
-                    val playerConfig: YamlConfiguration = YamlConfiguration.loadConfiguration(file)
-                    var playerMoney = playerConfig.getInt("money")
                     var money = StringBuilder("")
                     val inv = frame(4, Component.text("${ChatColor.GRAY}${ChatColor.BOLD}수표발행")){
                         HeartbeatScope().launch {
@@ -345,7 +294,7 @@ class Please : JavaPlugin() {
                                 item(5,3,item(Material.LIME_STAINED_GLASS_PANE){
                                     setDisplayName("&a&l${if(money.toString()!="")money else "0"}원 발행하기".translateColor())
                                     lore = listOf("&7클릭 시 금액을 수표로 발행합니다. 5%(0원)의 수수료가 발생합니다.".translateColor(),
-                                        "&7현재 잔액 ${playerMoney}".translateColor())
+                                        "&7현재 잔액 ${economy?.getBalance(player)?:0}".translateColor())
                                     ItemFlag.values().forEach {
                                         addItemFlags(it)
                                     }})
@@ -398,9 +347,8 @@ class Please : JavaPlugin() {
                                             val a = if  (money.toString() == "") "0" else money.toString()
                                             if (a.toInt() >= 1000) {
                                                 val v = a.toInt() + (a.toInt() * 0.05).toInt()
-                                                if (playerMoney >= v) {
-                                                    playerConfig.set("money",playerMoney - v)
-                                                    playerConfig.save(file)
+                                                if ((economy?.getBalance(player)?:0.0) >= v) {
+                                                    economy?.depositPlayer(player,-v.toDouble())
                                                     player.closeInventory()
                                                     val paper = item(Material.PAPER){
                                                         setDisplayName("&e&l수표 &a&l$money}원".translateColor())
@@ -443,137 +391,25 @@ class Please : JavaPlugin() {
                 val block: Block = block
                 HeartbeatScope().launch {
                     val h = multiplier
-                    when (block.type) {
-                        Material.DEEPSLATE -> {
-                            val chance = 0.02 * h
+                    val canDropBlocks = config.getConfigurationSection("보상블럭") ?: config.createSection("보상블럭")
+                    canDropBlocks.getKeys(false).forEach {
+                        if (Material.valueOf(it) == block.type){
+                            val chance = canDropBlocks.getDouble(it) * h
                             if (Random().nextDouble(0.0, 100.0) < chance) {
                                 dropRandomItem(block.location)
                             }
                         }
-                        Material.STONE -> {
-                            val chance = 0.011 * h
+                    }
+                    val canDropCrops = config.getConfigurationSection("보상식물") ?: config.createSection("보상식물")
+                    canDropCrops.getKeys(false).forEach {
+                        if (Material.valueOf(it) == block.type){
+                            val chance = canDropBlocks.getDouble(it) * h
                             if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
+                                checkCropAndDropItem(block,  h)
                             }
-                        }
-                        Material.DIAMOND_ORE -> {
-                            val chance = 2.1 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_DIAMOND_ORE -> {
-                            val chance = 3.1 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.ANCIENT_DEBRIS -> {
-                            val chance = 10.0 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.IRON_ORE -> {
-                            val chance = 0.62 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_IRON_ORE -> {
-                            val chance = 0.62 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.REDSTONE_ORE -> {
-                            val chance = 0.65 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_REDSTONE_ORE -> {
-                            val chance = 0.65 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.GOLD_ORE -> {
-                            val chance = 0.75 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_GOLD_ORE -> {
-                            val chance = 0.75 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.COPPER_ORE -> {
-                            val chance = 0.33 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_COPPER_ORE -> {
-                            val chance = 0.33 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.COAL_ORE -> {
-                            val chance = 0.28 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_COAL_ORE -> {
-                            val chance = 0.28 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.LAPIS_ORE -> {
-                            val chance = 0.65 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.DEEPSLATE_LAPIS_ORE -> {
-                            val chance = 0.65 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.EMERALD_ORE -> {
-                            val chance = 2.5 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.PUMPKIN -> {
-                            val chance = 0.35 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.MELON -> {
-                            val chance = 0.35 * h
-                            if (Random().nextDouble(0.0, 100.0) < chance) {
-                                dropRandomItem(block.location)
-                            }
-                        }
-                        Material.WHEAT -> checkCropAndDropItem(block, 7, h)
-                        Material.BEETROOTS -> checkCropAndDropItem(block, 3, h)
-                        Material.POTATOES -> checkCropAndDropItem(block, 7, h)
-                        Material.CARROTS -> checkCropAndDropItem(block, 7, h)
-                        else -> {
-                            // Handle other block types if needed
                         }
                     }
                 }
-
             }
             event<BlockPlaceEvent> {
                 val player = player
@@ -631,18 +467,11 @@ class Please : JavaPlugin() {
                         val money = item.itemMeta.persistentDataContainer.get(
                             NamespacedKey.fromString("money")!!,
                             PersistentDataType.INTEGER)!!
-                        val folder = File(dataFolder,"Players")
-                        if (!folder.exists()) {
-                            folder.mkdirs()
-                        }
-                        val file = File(folder, "${player.name}.yml")
-                        val playerConfig: YamlConfiguration = YamlConfiguration.loadConfiguration(file)
+
                         player.inventory.removeItem(item)
-                        playerConfig.set("money",playerConfig.getInt("money")+money)
+                        economy?.depositPlayer(player,money.toDouble())
                         player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_BELL, SoundCategory.PLAYERS, 1.0f, 1.0f)
                         player.sendMessage("§e§l${money}만큼 잔액에 추가되었습니다.".translateColor())
-                        playerConfig.save(file)
-
                     }
                 }
             }
@@ -679,14 +508,24 @@ class Please : JavaPlugin() {
 
         }
     }
+    private fun setupEconomy(): Boolean {
+        if (server.pluginManager.getPlugin("Vault") == null) {
+            return false
+        }
+        val rsp = server.servicesManager.getRegistration(
+            Economy::class.java
+        ) ?: return false
+        economy = rsp.provider
+        return economy != null
+    }
     override fun onDisable() {
 
     }
-    suspend fun checkCropAndDropItem(block: Block, maturity: Int, dropChanceMultiplier: Double) {
+    suspend fun checkCropAndDropItem(block: Block,  dropChanceMultiplier: Double) {
         val state = block.state
         val age = (state.blockData as Ageable).age
-        logger.info("$age $dropChanceMultiplier $maturity")
-        if (age <= maturity && Random().nextDouble(0.0, 100.0) < 0.25 * dropChanceMultiplier) {
+        logger.info("$age $dropChanceMultiplier ${(state.blockData as Ageable).maximumAge}")
+        if (age <= (state.blockData as Ageable).maximumAge && Random().nextDouble(0.0, 100.0) < 0.25 * dropChanceMultiplier) {
             dropRandomItem(block.location)
         }
     }
@@ -698,19 +537,15 @@ class Please : JavaPlugin() {
         }
     }
     private fun isRestrictedBlock(material: Material): Boolean {
-        return material == Material.DIAMOND_ORE ||
-                material == Material.ANCIENT_DEBRIS ||
-                material == Material.PUMPKIN ||
-                material == Material.MELON
+        val blocks = config.getStringList("보호블럭")
+        return blocks.contains(material.toString())
     }
 }
-data class test(
-    val name: String,
-)
 
 fun spawnEntity(victim : Entity,config : Configuration){
     val it = victim.location.world.spawnEntity(victim.location,victim.type) as LivingEntity
     it.isGlowing = true
+    (it as LivingEntity).getAttribute(Attribute.GENERIC_ATTACK_SPEED)?.baseValue = config.getDouble("AttackSpeed")
     (it as LivingEntity).maxHealth += config.getInt("Hp")?:0
     (it as LivingEntity).health = (it as LivingEntity).maxHealth
     (it as LivingEntity).addPotionEffect(PotionEffect(
